@@ -1,0 +1,4 @@
+/node_modules/
+/static/dist/
+/static/css/
+/__pycache__/
