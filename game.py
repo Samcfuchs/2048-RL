@@ -74,7 +74,7 @@ class Game(object):
         return self.grid, self.illegal
     
 
-    moves = [arrow['u'], arrow['d'], arrow['l'], arrow['r']]
+    moves = [arrow['d'], arrow['u'], arrow['l'], arrow['r']]
     def move4(self, n):
         """ 
         A wrapper for move that takes an integer in range(0,4) representing one
@@ -157,7 +157,8 @@ class Game(object):
             _, is_over = self.populate()
         
         if n==2:
-            self.score += self.penalty
+            #self.score += self.penalty
+            self.score += 128
         
         return self.grid, illegal, self.is_over()
 

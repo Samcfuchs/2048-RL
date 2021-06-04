@@ -16,10 +16,11 @@ lr = 1e-6 # Gradient descent step size
 #iterations = int(1e5)
 batch_size = 256
 gamma = 0.99
-hidden_size = 64 # Size of model hidden layer
+hidden_size = 256 # Size of model hidden layer
 memory_size = int(1e5) # Number of moves in our training corpus each epoch
-training_iterations = int(1e4) # Number of batches to train on
-epochs = 10
+training_iterations = int(2e3) # Number of batches to train on
+epochs = 60
+device = 'cpu'
 
 class Baseline(nn.Module):
     def __init__(self):
@@ -50,6 +51,7 @@ class DQN(nn.Module):
         z3 = self.layer3(z1)
         #out = self.activation(z3)
         #assert torch.argmax(z3) == 0
+        assert not torch.isnan(z3).any()
         return z3
     
     def init_weights(self, m):
@@ -59,6 +61,7 @@ class DQN(nn.Module):
 
 model = DQN()
 baseline = Baseline()
+model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 criterion = nn.MSELoss()
@@ -73,10 +76,10 @@ def train(replay_memory):
     minibatch = random.sample(replay_memory, k=batch_size)
 
     # Unpack mini-batch into state, action, reward, and new-state vectors
-    prestates = torch.cat([d[0] for d in minibatch])
-    actions = torch.cat([d[1] for d in minibatch])
-    rewards = torch.cat([torch.tensor([d[2]]) for d in minibatch])
-    poststates = torch.cat([d[3] for d in minibatch])
+    prestates = torch.cat([d[0] for d in minibatch]).to(device)
+    actions = torch.cat([d[1] for d in minibatch]).to(device)
+    rewards = torch.cat([torch.tensor([d[2]]) for d in minibatch]).to(device)
+    poststates = torch.cat([d[3] for d in minibatch]).to(device)
 
     # HWM move those vectors onto the GPU to train
 
@@ -85,20 +88,11 @@ def train(replay_memory):
     #new_actions = torch.argmax(outputs, dim=1)
     #print("New actions shape:", new_actions.shape)
 
-
-    y_batch = torch.zeros(len(minibatch), dtype=float)
-    for i in range(len(minibatch)):
-        if minibatch[i][4]:
-            # This is a game-end state
-            y_batch[i] = rewards[i]
-        else:
-            #assert gamma * torch.max(outputs[i]) > 0
-            y_batch[i] = rewards[i] + gamma * torch.max(outputs[i])
-
-    # y_batch = torch.cat(tuple(reward_batch[i] if minibatch[i][4]
-    #                           else reward_batch[i] + model.gamma * torch.max(output_1_batch[i])
-    #                           for i in range(len(minibatch))))
-
+    # TODO optimize this somehow
+    mask = 1 - torch.tensor([d[4] for d in minibatch], dtype=float).to(device)
+    residuals = gamma * torch.max(outputs, dim=1).values
+    assert len(residuals) == batch_size
+    y_batch = rewards + (mask * residuals)
 
     # Calculate the Q-value
     outputs = model(prestates)
@@ -123,13 +117,15 @@ def train(replay_memory):
 
     return loss
 
+all_actions = []
 def play_turn(model, game, eps=epsilon):
 
     # Get the game state from the game and choose a move
-    state = torch.from_numpy(game.grid).unsqueeze(0).float().clone()
+    state = torch.from_numpy(game.grid).unsqueeze(0).float().clone().to(device)
     output = model(state)
 
     action = torch.argmax(output)
+    #all_actions.append(action.unsqueeze(0))
 
     # Sometimes just choose a random move instead
     do_random = np.random.random() < eps
@@ -142,13 +138,15 @@ def play_turn(model, game, eps=epsilon):
     # OPTIMIZE
     flubs = 0
     while illegal:
-
-        #print("oopsie!")
+        #print("Looping")
         # This board has NOT been populated yet.
-        action = np.random.randint(0,4)
+        # Choose the next best action
+        output[0, action] = torch.min(output) - 1
+        action = torch.argmax(output)
+        #action = np.random.randint(0,4)
         new_state, illegal, terminal = game.turn4(action)
         flubs += 1
-    #print("FIXED IT!")
+    #print("Escaped")
 
     reward = game.score
 
@@ -199,17 +197,26 @@ def test(model, n_games):
 
 stats = test(model, n_games=100)
 print(f"Untrained: {stats}")
+#print(torch.bincount(torch.cat(all_actions)))
 
-stats = test(baseline, n_games=100)
-print(f"Baseline: {stats}")
+plt.bar(['u','d','l','r'], stats['move_distribution'])
+plt.ylim(top=1)
+plt.grid(axis='y')
+plt.title("Move distribution of untrained model")
+plt.savefig("img/untrained_move_dist.png")
+
+#stats = test(baseline, n_games=100)
+#print(f"Baseline: {stats}")
 
 losses = []
 statses = []
+model.train()
+
 for e in tqdm(range(epochs)):
 
     replay_memory = []
 
-    for i in (range(memory_size)):
+    for i in range(memory_size):
 
         # Start a new game if necessary
         if game.is_over():
@@ -221,7 +228,7 @@ for e in tqdm(range(epochs)):
         # HWM decrease the value of epsilon to make our algorithm more exploitative
 
     # Train the model a bunch of times
-    for i in (range(training_iterations)):
+    for i in range(training_iterations):
         l = train(replay_memory)
         losses.append(l.detach().item())
     
@@ -231,17 +238,19 @@ for e in tqdm(range(epochs)):
     del replay_memory
     gc.collect()
 
+plt.figure()
 plt.plot(range(epochs), [s['avg_score'] for s in statses])
 plt.ylabel("Average score")
 plt.xlabel("Epoch")
+plt.title("Score")
 plt.grid()
 plt.savefig("img/scores.png")
 
 plt.figure()
 plt.bar(['u','d','l','r'], stats['move_distribution'])
 plt.ylim(top=1)
-plt.title("Testing move distribution for trained model")
-plt.grid('x')
+plt.title("Move distribution for trained model")
+plt.grid(axis='y')
 plt.savefig("img/trained_move_dist.png")
 
 plt.figure()
