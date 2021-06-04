@@ -4,6 +4,7 @@ import numpy as np
 class Game(object):
 
     penalty = 32
+    fake_reward = 128
 
     def __init__(self, size=4, four_rate=0.10):
         self.size = size
@@ -74,7 +75,7 @@ class Game(object):
         return self.grid, self.illegal
     
 
-    moves = [arrow['d'], arrow['u'], arrow['l'], arrow['r']]
+    moves = [arrow['u'], arrow['d'], arrow['l'], arrow['r']]
     def move4(self, n):
         """ 
         A wrapper for move that takes an integer in range(0,4) representing one
@@ -104,7 +105,6 @@ class Game(object):
         return self.grid, self.game_over
 
 
-    #@staticmethod
     """ Merge the elements of a list toward the left. Removes zeros """
     def merge_left(self, row):
         skip = False
@@ -112,23 +112,22 @@ class Game(object):
         row = [v for v in row if v]
         for i in range(len(row)):
             if skip or row[i] == 0:
-                #print("Skipped", i)
                 skip = False
                 continue
 
             if i == len(row)-1:
-                #print("Left", i)
                 merged.append(row[i])
                 continue
 
             if row[i] == row[i+1]:
                 merged.append(row[i]*2)
                 skip = True
-                self.score += row[i] * 2
-                #print(f"Merged {i} and {i+1}")
+
+                if not self.fake_reward:
+                    self.score += row[i] * 2
+
                 continue
             
-            #print("Left", i)
             merged.append(row[i])
 
         return merged
@@ -158,7 +157,7 @@ class Game(object):
         
         if n==2:
             #self.score += self.penalty
-            self.score += 128
+            self.score += self.fake_reward
         
         return self.grid, illegal, self.is_over()
 

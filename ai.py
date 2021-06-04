@@ -1,5 +1,4 @@
-from audioop import avg
-from torch import double, nn
+from torch import nn
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,15 +10,15 @@ import gc
 
 gc.enable()
 
-epsilon = 0.95 # Probability of choosing a random action
+epsilon = 0.90 # Probability of choosing a random action
 lr = 1e-6 # Gradient descent step size
 #iterations = int(1e5)
 batch_size = 256
 gamma = 0.99
 hidden_size = 256 # Size of model hidden layer
 memory_size = int(1e5) # Number of moves in our training corpus each epoch
-training_iterations = int(2e3) # Number of batches to train on
-epochs = 60
+training_iterations = int(1000) # Number of batches to train on
+epochs = 300
 device = 'cpu'
 
 class Baseline(nn.Module):
@@ -157,9 +156,6 @@ def play_turn(model, game, eps=epsilon):
     action_oh[0][action] = 1
 
     new_state = torch.from_numpy(game.grid).unsqueeze(0).float().clone()
-    #print(f"new_state: {new_state}")
-
-
 
     # Save this transition to our replay memory
     return (state, action_oh, reward, new_state, terminal), flubs
@@ -205,12 +201,14 @@ plt.grid(axis='y')
 plt.title("Move distribution of untrained model")
 plt.savefig("img/untrained_move_dist.png")
 
-#stats = test(baseline, n_games=100)
-#print(f"Baseline: {stats}")
+stats = test(baseline, n_games=100)
+print(f"Baseline: {stats}")
 
 losses = []
 statses = []
 model.train()
+
+print("Begin training")
 
 for e in tqdm(range(epochs)):
 
@@ -262,4 +260,7 @@ plt.ylabel("Miss rate")
 plt.savefig("img/miss_rate.png")
 
 print("="*10)
-print(stats)
+print("Trained:", stats)
+
+torch.save(model.state_dict(), "models/trained.pth")
+print("Saved model")
