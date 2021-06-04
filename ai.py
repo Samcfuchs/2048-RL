@@ -1,5 +1,6 @@
-from torch import nn
 import torch
+from torch import nn
+from torch.nn import functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 import game as core
@@ -33,25 +34,36 @@ class DQN(nn.Module):
     def __init__(self):
         super().__init__()
 
+        self.classes = 11
+
         self.flat = nn.Flatten()
         self.layer1 = nn.Linear(16, hidden_size)
-        #self.layer2 = nn.Linear(hidden_size, hidden_size)
-        self.layer3 = nn.Linear(hidden_size, 4)
+        self.layer2 = nn.Linear(hidden_size, 4)
         self.relu = nn.ReLU()
 
         self.apply(self.init_weights)
     
     def forward(self, x):
 
-        #x_prep = torch.log2(x.reshape(-1, 16))
-        x_prep = (x.reshape(-1, 16))
-        z1 = self.relu(self.layer1(x_prep))
-        #z2 = self.relu(self.layer2(z1))
-        z3 = self.layer3(z1)
+        x = self.preprocess(x)
+        print(x.shape)
+        z1 = self.relu(self.layer1(x))
+        z2 = self.layer2(z1)
         #out = self.activation(z3)
-        #assert torch.argmax(z3) == 0
-        assert not torch.isnan(z3).any()
-        return z3
+        assert not torch.isnan(z2).any()
+
+        return z2
+
+    def preprocess(self, x):
+        x = x.reshape(-1,4,4)
+
+        x_log = torch.log2(x + (x==0).int())
+        onehot = F.one_hot(x_log.long(), num_classes=self.classes)
+
+        # Transpose into (Batch, Channel, Row, Column) order
+        output = np.transpose(onehot, axes=[0,3,1,2])
+
+        return output
     
     def init_weights(self, m):
         if type(m) == nn.Linear:
@@ -67,6 +79,21 @@ criterion = nn.MSELoss()
 
 game = core.Game()
 game.start()
+
+print(model)
+
+
+def count_params(module):
+    return sum(p.numel() for p in module.parameters() if p.requires_grad)
+
+
+print("Trainable parameters 1:", count_params(model.layer1))
+print("Trainable parameters 2:", count_params(model.layer2))
+print("Trainable parameters all:", count_params(model))
+print()
+
+y = model(torch.from_numpy(game.grid).float())
+print(y)
 
 def train(replay_memory):
     #assert not (replay_memory[0][3] == replay_memory[1][3]).all()
