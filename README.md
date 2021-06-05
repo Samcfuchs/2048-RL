@@ -51,13 +51,34 @@ linear layers entirely, since the placement of tile groups on the board is very
 important to higher-level strategy.
 
 The input encoding is far too simple. We should at minimum prefer a labeling
-system (i.e. $log_2x$) that will eliminate the order-of-magnitude differences
+system (i.e. $$log_2x$$) that will eliminate the order-of-magnitude differences
 between different tiles. One-hot encoding of the inputs is another option which
 we can consider, perhaps combining it with some really weird convolutional layer
 shapes.
 
 It's hard to say whether these flaws will limit our model's performance on
 baseline tasks, or whether they should be reserved for later development.
+
+This feedforward network has 5380 parameters:
+- layer 1: 4352
+- layer 2: 1028
+
+## Convolutional Architecture
+
+I compose a new convolutional architecture to approach the problem. Instead of
+representing with labels, I create a one-hot vector categorizing each tile as
+one of the 11 possible powers of two. This gives us an input vector with the
+shape 11x4x4, on which we perform 2-dimensional convolutions with a 3x3 kernel.
+We leave the image size unchanged (with a stride of 1) for both layers of
+convolution and pooling.
+
+After 100 epochs of training, we see a significant increase in performance on
+the one-directional task. The model learns to favor two directions, the scoring
+one and another. This shows that not only is the model learning to select the
+highest-scoring direction, it also learns to extend the game so that it can
+enter more moves in that direction. This behavior, of extending the game, is a
+huge step forward for the model. The "real" scoring behavior of 2048 is quite
+sparse, but these results give me reason to believe that this model can improve.
 
 ## Some Results
 
