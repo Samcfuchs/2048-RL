@@ -1,18 +1,18 @@
 #from multiprocessing import Pool
+import json
+import os
 import torch
 from torch import nn
-from torch.nn import functional as F
-#from torch import multiprocessing as multi
-#from torch.multiprocessing import Pool
-import multiprocessing as multi
-from multiprocessing import Pool
 import numpy as np
-import matplotlib.pyplot as plt
 import game as core
 import random
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 import gc
+import models
+#from torch import multiprocessing as multi
+#from torch.multiprocessing import Pool
+#import multiprocessing as multi
+#from multiprocessing import Pool
 
 gc.enable()
 
@@ -28,62 +28,14 @@ training_iterations = int(1000) # Number of batches to train on
 epochs = 100
 device = 'cpu'
 
-class Baseline(nn.Module):
-    def __init__(self):
-        super().__init__()
-    
-    def forward(self, x):
-        return torch.rand((x.shape[0], 4))
+folder = 'results/testamundo/'
 
+try:
+    os.mkdir(folder)
+except FileExistsError:
+    pass
 
-class DQN(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.classes = 11
-
-        self.flat = nn.Flatten()
-        #self.layer1 = nn.Linear(16, hidden_size)
-        #self.layer2 = nn.Linear(hidden_size, 4)
-        self.relu = nn.ReLU()
-
-        self.conv1 = nn.Conv2d(self.classes, 4, 3, 1, 1)
-        self.conv2 = nn.Conv2d(4, 4, 3, 1, 1)
-        self.pool = nn.MaxPool2d(3,1,1)
-
-        self.linear1 = nn.Linear(64, hidden_size)
-        self.out = nn.Linear(hidden_size, 4)
-
-        self.apply(self.init_weights)
-    
-    def forward(self, x):
-
-        x = self.preprocess(x)
-        #print(x.shape)
-        z1 = self.relu(self.conv1(x))
-        z2 = self.conv2(z1)
-        z3 = self.relu(self.pool(z2))
-        z4 = self.relu(self.linear1(z3.reshape(-1,64)))
-        z5 = self.out(z4)
-        #print(z2.shape)
-
-        return z5
-
-    def preprocess(self, x):
-        x = x.reshape(-1,4,4)
-
-        x_log = torch.log2(x + (x==0).int())
-        onehot = F.one_hot(x_log.long(), num_classes=self.classes)
-
-        # Transpose into (Batch, Channel, Row, Column) order
-        output = np.transpose(onehot, axes=[0,3,1,2])
-
-        return output.float()
-    
-    def init_weights(self, m):
-        if type(m) == nn.Linear:
-            torch.nn.init.xavier_uniform_(m.weight)
-            m.bias.data.fill_(0.01)
+stats_file = folder + 'stats.json'
 
 
 def ez(x):
@@ -132,7 +84,6 @@ def play_turn(model, game, eps=epsilon):
 
     # Save this transition to our replay memory
     return (state, action_oh, reward, new_state, terminal), flubs
-
 
 
 def train(replay_memory, model, optimizer, criterion):
@@ -211,7 +162,7 @@ def test(model, n_games):
         'avg_turns': total_turns / n_games,
         'miss_rate': total_illegals / total_turns,
         'misses_per_game': total_illegals / n_games,
-        'move_distribution': moves / total_turns,
+        'move_distribution': (moves / total_turns).tolist(),
         'turns': total_turns,
         'highest_tile': np.log2(highest_tile)
     }
@@ -221,8 +172,8 @@ def test(model, n_games):
 
 if __name__ == "__main__":
 
-    model = DQN()
-    baseline = Baseline()
+    model = models.DQN(hidden_size)
+    baseline = models.Baseline()
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -239,21 +190,15 @@ if __name__ == "__main__":
     print("Trainable parameters all:", count_params(model))
     print()
 
-    stats = test(model, n_games=100)
-    print(f"Untrained: {stats}")
+    stats_untrained = test(model, n_games=100)
+    print(f"Untrained: {stats_untrained}")
     #print(torch.bincount(torch.cat(all_actions)))
-
-    plt.bar(['u','d','l','r'], stats['move_distribution'])
-    plt.ylim(top=1)
-    plt.grid(axis='y')
-    plt.title("Move distribution of untrained model")
-    plt.savefig("img/untrained_move_dist.png")
 
     stats = test(baseline, n_games=100)
     print(f"Baseline: {stats}")
 
     losses = []
-    statses = []
+    stats = [stats_untrained]
     model.train()
     #multi.set_sharing_strategy('file_system')
 
@@ -310,53 +255,18 @@ if __name__ == "__main__":
             l = train(replay_memory, model, optimizer, criterion)
             losses.append(l.detach().item())
         
-        stats = test(model, n_games=100)
-        statses.append(stats)
+        stat = test(model, n_games=100)
+        stats.append(stat)
 
         del replay_memory
         gc.collect()
+    
+    # Save the stats
+    if stats_file:
+        with open(stats_file, 'w') as f: json.dump(stats, f)
+        print("Saved stats")
 
-    plt.figure()
-    plt.plot(range(epochs), [s['avg_score'] for s in statses])
-    plt.ylabel("Average score")
-    plt.xlabel("Epoch")
-    plt.title("Score")
-    plt.grid()
-    plt.savefig("img/scores.png")
-
-    plt.figure()
-    plt.bar(['u','d','l','r'], stats['move_distribution'])
-    plt.ylim(top=1)
-    plt.title("Move distribution for trained model")
-    plt.grid(axis='y')
-    plt.savefig("img/trained_move_dist.png")
-
-    plt.figure()
-    plt.plot(range(epochs), [s['miss_rate'] for s in statses])
-    plt.title('Miss Rate')
-    plt.xlabel("Epochs")
-    plt.grid()
-    plt.ylabel("Miss rate")
-    plt.savefig("img/miss_rate.png")
-
-    plt.figure()
-    plt.plot(range(epochs), [s['avg_turns'] for s in statses])
-    plt.title('Turns Played')
-    plt.xlabel("Epochs")
-    plt.grid()
-    plt.ylabel("Turns Played")
-    plt.savefig("img/turns_played.png")
-
-    plt.figure()
-    plt.plot(range(epochs), [s['highest_tile'] for s in statses])
-    plt.title('Highest tile')
-    plt.xlabel("Epochs")
-    plt.grid()
-    plt.ylabel("Turns Played")
-    plt.savefig("img/turns_played.png")
-
-    print("="*10)
-    print("Trained:", stats)
-
-    torch.save(model.state_dict(), "models/trained.pth")
+    # Save the model
+    torch.save(model.state_dict(), folder + "trained.pth")
     print("Saved model")
+
