@@ -1,25 +1,44 @@
 import game as core
 import numpy as np
+import models
+import torch
+from ai import hidden_size
+import sys
 
-arrow = { "l": (0, -1), "r": (0, 1), "u": (1, -1), "d": (1, 1) }
+# Run a model through a game and see how it plays.
 
-board = np.array([[0,0,0,2],
-                  [0,2,0,0],
-                  [0,0,0,0],
-                  [0,0,0,0]])
+folder = sys.argv[1]
+filename = f"results/{folder}/trained.pth"
+
+model = models.DQN(hidden_size)
+model.load_state_dict(torch.load(filename))
 
 game = core.Game()
 
 game.start()
 
-# HACK
-game.grid = board
+dirs = ['u','d','l','r']
 
-game.display()
+while not game.is_over():
+    game.display()
+    print("Score:", game.score)
 
-game.move4(1)
+    x = torch.tensor(game.grid).float()
+    output = model(x)
+    move = torch.argmax(output)
 
-game.display()
+    _, illegal, _ = game.turn4(move)
 
-game.populate()
-game.display()
+    flubs = 0
+    while illegal:
+        output[0, move] = torch.min(output) - 1
+        move = torch.argmax(output)
+        #action = np.random.randint(0,4)
+        _, illegal, _ = game.turn4(move)
+        flubs += 1
+
+    print("Move:", dirs[move])
+    if flubs: print(flubs, "illegal moves tried")
+
+    #input()
+
