@@ -4,7 +4,7 @@ import numpy as np
 class Game(object):
 
     penalty = 32
-    fake_reward = 128
+    fake_reward = 0
 
     def __init__(self, size=4, four_rate=0.10):
         self.size = size
