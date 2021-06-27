@@ -122,3 +122,13 @@ model:
 - epochs = 60
 
 This is with just one hidden layer.
+
+## Resources
+
+- https://towardsdatascience.com/the-bellman-equation-59258a0d3fa7
+- https://www.toptal.com/deep-learning/pytorch-reinforcement-learning-tutorial
+
+- https://www.mit.edu/~adedieu/pdf/2048.pdf
+
+- https://neuro.cs.ut.ee/demystifying-deep-reinforcement-learning/
+- https://cs.uwaterloo.ca/~mli/zalevine-dqn-2048.pdf
