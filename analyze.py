@@ -1,3 +1,5 @@
+#!/home/sam/miniconda3/envs/datasci/bin/python
+
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -61,5 +63,13 @@ plt.plot(range(epochs), [s['highest_tile'] for s in stats])
 plt.title('Highest tile')
 plt.xlabel("Epochs")
 plt.grid()
-plt.ylabel("Turns Played")
+plt.ylabel("Highest Tile")
 plt.savefig(img_location + "highest_tile.png")
+
+plt.figure()
+plt.plot(range(1,epochs), [s['train_loss'] for s in stats[1:]])
+plt.title('Loss')
+plt.xlabel("Epochs")
+plt.grid()
+plt.ylabel("Epoch Training Loss")
+plt.savefig(img_location + "loss.png")
