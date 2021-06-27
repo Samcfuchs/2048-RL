@@ -17,12 +17,14 @@ import models
 
 gc.enable()
 
-epsilon = 0.80 # Probability of choosing a random action
+# epsilon = 0.80 # Probability of choosing a random action
+epsilon_decay = 0.025
+epsilon_fn = lambda epoch: (1-epsilon_decay)**epoch
 lr = 1e-6 # Gradient descent step size
 #iterations = int(1e5)
 batch_size = 100
 losing_cost = 0
-gamma = 0.99
+gamma = 0.90
 #hidden_size = 64 # Size of model hidden layer
 memory_size = int(1e4) # Number of moves in our training corpus each epoch
 training_iterations = int(1e3) # Number of batches to train on
@@ -228,6 +230,7 @@ if __name__ == "__main__":
         return memory
 
     for e in tqdm(range(epochs), ncols=70):
+        epsilon = epsilon_fn(e)
         try:
 
             replay_memory = []
