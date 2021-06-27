@@ -233,34 +233,7 @@ if __name__ == "__main__":
             replay_memory = []
 
 
-
-            """
-            # Attempt multithreading
-            with Pool(6) as p:
-                entries = p.map(play_game, list(range(200)))
-                replay_memory += entries
-                #for game in entries:
-                #    replay_memory += game
-
-            #print(len(replay_memory))
-
-            replay_memory = [move for game in replay_memory for move in game]
-            #print(len(replay_memory))
-
-            """
-
-            game = core.Game()
-            game.start()
-            for i in (range(memory_size)):
-
-                # Start a new game if necessary
-                if game.is_over():
-                    game.start()
-
-                mem, _ = play_turn(model, game)
-                replay_memory.append(mem)
-
-                # HWM decrease the value of epsilon to make our algorithm more exploitative
+            # HWM decrease the value of epsilon to make our algorithm more exploitative
 
             loss = 0
             # Train the model a bunch of times
