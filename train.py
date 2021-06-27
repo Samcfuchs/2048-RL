@@ -45,7 +45,7 @@ def ez(x):
     return torch.tensor([[0,0,1,0]])
 
 all_actions = []
-def play_turn(model, game, eps=epsilon):
+def play_turn(model, game, eps=epsilon_fn(0)):
 
     # Get the game state from the game and choose a move
     state = torch.from_numpy(game.grid).unsqueeze(0).float().clone().to(device)
@@ -223,14 +223,13 @@ if __name__ == "__main__":
         game.start()
 
         while not game.is_over():
-            mem, _ = play_turn(ez, game, epsilon)
+            mem, _ = play_turn(ez, game)
 
             memory.append(mem)
 
         return memory
 
     for e in tqdm(range(epochs), ncols=70):
-        epsilon = epsilon_fn(e)
         try:
 
             replay_memory = []
@@ -243,7 +242,7 @@ if __name__ == "__main__":
                 if game.is_over():
                     game.start()
 
-                mem, _ = play_turn(model, game)
+                mem, _ = play_turn(model, game, eps=epsilon_fn(e))
                 replay_memory.append(mem)
 
                 # HWM decrease the value of epsilon to make our algorithm more exploitative
