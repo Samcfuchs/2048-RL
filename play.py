@@ -2,7 +2,7 @@ import game as core
 import numpy as np
 import models
 import torch
-from ai import hidden_size
+from train import hidden_size
 import sys
 
 # Run a model through a game and see how it plays.

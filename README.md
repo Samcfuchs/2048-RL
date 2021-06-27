@@ -80,6 +80,33 @@ enter more moves in that direction. This behavior, of extending the game, is a
 huge step forward for the model. The "real" scoring behavior of 2048 is quite
 sparse, but these results give me reason to believe that this model can improve.
 
+## SmartCNN
+
+Because diagonal relationships aren't very important in 2048, we might see
+better performance by focusing exclusively on the salient vertical and
+horizontal relationships. This model develops its understanding of the board
+state more as a network of connected nodes rather than a coherent grid.
+
+My feature set is similar to that of the previous architecture, but with one
+added feature to capture the boolean "emptiness" of the board: a mask
+representing which squares are occupied and which are empty. This makes it
+easier for the model to understand where the next tile may appear. This model
+also performs a normalization step which places the highest-value corner tile in
+the upper left-hand corner of the board. This allows the model some invariance
+with respect to *which* corner it accumulates tiles in. Because the game is
+rotationally symmetric, we can expect the model to learn patterns more quickly
+under normalized conditions.
+
+This CNN uses two separate convolutional layers: one with a (1x2) kernel to
+capture horizontal relationships, and one with a (2x1) kernel to capture
+relationships between vertical tiles, each with four output features. With these
+smaller kernels, I no longer use any padding, which eliminates another weakness
+of the previous model. I concatenate these two (12x4) matrices to create the
+feature vector which is processed by two linear layers. One of the key
+advantages of CNN architectures is invariance to translation, but in this case,
+we want to preserve locational relationships in order for the model to make more
+circumspect decisions, so I omit pooling steps and other aggregations
+
 ## Some Results
 
 With these parameters, I see a steady increase in average game scores for my
