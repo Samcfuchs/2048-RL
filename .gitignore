@@ -5,3 +5,7 @@
 
 /results/
 /resources/
+
+log.txt
+*.pstats
+/www/
