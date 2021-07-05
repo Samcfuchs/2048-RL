@@ -111,7 +111,7 @@ class Game(object):
         merged = []
         row = [v for v in row if v]
         for i in range(len(row)):
-            if skip or row[i] == 0:
+            if skip:
                 skip = False
                 continue
 
