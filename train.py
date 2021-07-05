@@ -17,21 +17,23 @@ import models
 
 gc.enable()
 
-# epsilon = 0.80 # Probability of choosing a random action
-epsilon_decay = 0.025
-epsilon_fn = lambda epoch: (1-epsilon_decay)**epoch
 lr = 1e-6 # Gradient descent step size
 #iterations = int(1e5)
-batch_size = 100
-losing_cost = 0
+batch_size = 256
+losing_cost = 0 # cost incurred on the end game state
 gamma = 0.90
-#hidden_size = 64 # Size of model hidden layer
 memory_size = int(1e4) # Number of moves in our training corpus each epoch
 training_iterations = int(1e3) # Number of batches to train on
-epochs = 30
+# Epsilon is the probability of choosing a random action
+epsilon_decay = 0.005 # Rate of epsilon's exponential decay
+epsilon_fn = lambda epoch: (1-epsilon_decay)**epoch
+epochs = 100
+test_interval = 5 # How often to run a test and output results
+
 device = 'cpu'
 
-folder = 'results/smartCNN_fakedata_jun26/'
+model_path = ""
+folder = 'results/jul5/'
 
 try:
     os.mkdir(folder)
@@ -45,7 +47,7 @@ def ez(x):
     return torch.tensor([[0,0,1,0]])
 
 all_actions = []
-def play_turn(model, game, eps=epsilon_fn(0)):
+def play_turn(model: nn.Module, game: core.Game, eps=epsilon_fn(0)):
 
     # Get the game state from the game and choose a move
     state = torch.from_numpy(game.grid).unsqueeze(0).float().clone().to(device)
@@ -141,7 +143,8 @@ def train(replay_memory, model, optimizer, criterion):
     return loss
 
 
-def test(model, n_games):
+def test(model: nn.Module, n_games):
+    model.eval()
     game = core.Game()
     total_score = 0
     total_illegals = 0
@@ -179,7 +182,8 @@ def test(model, n_games):
 if __name__ == "__main__":
 
     model = models.SmartCNN()
-    #model.load_state_dict(torch.load('results/smart_300/trained.pth'))
+    # Import saved weights if appropriate
+    if model_path: model.load_state_dict(torch.load(model_path))
     baseline = models.Baseline()
     model.to(device)
 
@@ -199,7 +203,7 @@ if __name__ == "__main__":
 
     print(model)
 
-    print("Trainable parameters all:", models.count_params(model))
+    print("# of trainable parameters:", models.count_params(model))
     print()
 
     stats_untrained = test(model, n_games=100)
