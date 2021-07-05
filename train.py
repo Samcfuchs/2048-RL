@@ -32,15 +32,24 @@ test_interval = 5 # How often to run a test and output results
 
 device = 'cpu'
 
-model_path = ""
-folder = 'results/jul5/'
+in_folder = "results/jul5/"
+#in_folder = ""
+if in_folder:
+    model_path = in_folder + "trained.pth"
+    stats_file = in_folder + "stats.json"
+else:
+    model_path = ""
+    stats_file = ""
+
+out_folder = 'results/jul5/'
+stats_file_out = out_folder + "stats.json"
+
 
 try:
-    os.mkdir(folder)
+    os.mkdir(out_folder)
+    os.mkdir(out_folder + "models/")
 except FileExistsError:
     pass
-
-stats_file = folder + 'stats.json'
 
 
 def ez(x):
@@ -183,8 +192,22 @@ if __name__ == "__main__":
 
     model = models.SmartCNN()
     # Import saved weights if appropriate
-    if model_path: model.load_state_dict(torch.load(model_path))
-    baseline = models.Baseline()
+    previous_epochs = 0
+
+    if model_path:
+        model.load_state_dict(torch.load(model_path))
+        print("Loaded pre-trained model weights")
+        with open(stats_file, 'r') as f:
+            stats = json.load(f)
+            assert type(stats) is list
+        previous_epochs = stats[-1]['epoch']
+        print(f"Loaded {previous_epochs} previous stats")
+    else:
+        stats_untrained = test(model, n_games=100)
+        stats_untrained['epoch'] = -1
+        print(f"Untrained: {stats_untrained}")
+        stats = [stats_untrained]
+
     model.to(device)
 
     """
@@ -206,15 +229,11 @@ if __name__ == "__main__":
     print("# of trainable parameters:", models.count_params(model))
     print()
 
-    stats_untrained = test(model, n_games=100)
-    print(f"Untrained: {stats_untrained}")
-    #print(torch.bincount(torch.cat(all_actions)))
-
-    stats = test(baseline, n_games=100)
-    print(f"Baseline: {stats}")
+    # baseline = models.Baseline()
+    # stats = test(baseline, n_games=100)
+    # print(f"Baseline: {stats}")
 
     #losses = []
-    stats = [stats_untrained]
     model.train()
     #multi.set_sharing_strategy('file_system')
 
@@ -233,7 +252,7 @@ if __name__ == "__main__":
 
         return memory
 
-    for e in tqdm(range(epochs), ncols=70):
+    for e in tqdm(range(previous_epochs+1, previous_epochs+1 + epochs), ncols=70):
         try:
 
             replay_memory = []
@@ -259,13 +278,14 @@ if __name__ == "__main__":
 
             if e % test_interval == 0:
                 stat = test(model, n_games=100)
+                stat['epoch'] = e
                 stat['train_loss'] = (loss / training_iterations).item()
                 stats.append(stat)
 
-                if stats_file:
-                    with open(stats_file, 'w') as f: json.dump(stats, f)
+                if stats_file_out:
+                    with open(stats_file_out, 'w') as f: json.dump(stats, f)
                 
-                torch.save(model.state_dict(), folder + f"models/trained_{e}.pth")
+                torch.save(model.state_dict(), out_folder + f"models/trained_{e}.pth")
 
             del replay_memory
             gc.collect()
@@ -275,10 +295,10 @@ if __name__ == "__main__":
             break
 
     # Save the stats
-    if stats_file:
-        with open(stats_file, 'w') as f: json.dump(stats, f)
-        print("Saved stats")
+    if stats_file_out:
+        with open(stats_file_out, 'w') as f: json.dump(stats, f)
+    print("Saved stats")
 
     # Save the model
-    torch.save(model.state_dict(), folder + "trained.pth")
+    torch.save(model.state_dict(), out_folder + "trained.pth")
     print("Saved model")
