@@ -77,15 +77,16 @@ class SmartCNN(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.classes = 11
+        self.input_features = 12
+        self.output_features = 10
 
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
 
-        self.conv0 = nn.Conv2d(12, 4, kernel_size=(1,2),bias=True)
-        self.conv1 = nn.Conv2d(12, 4, kernel_size=(2,1), bias=False)
+        self.conv0 = nn.Conv2d(self.input_features, self.output_features, kernel_size=(1,4),bias=True)
+        self.conv1 = nn.Conv2d(self.input_features, self.output_features, kernel_size=(4,1), bias=True)
 
-        self.linear = nn.Linear(96, 256)
+        self.linear = nn.Linear(80, 256)
         self.output = nn.Linear(256,4)
 
         self.apply(self.init_weights)
@@ -97,11 +98,12 @@ class SmartCNN(nn.Module):
         zh = self.relu(self.conv0(x))
         zv = self.relu(self.conv1(x))
 
-        z1 = torch.cat((zh.reshape(-1,48), zv.reshape(-1,48)), dim=1)
-        # 96 features
+        # Flatten convolution output
+        z1 = torch.cat((zh.reshape(-1,40), zv.reshape(-1,40)), dim=1)
 
         z2 = self.relu(self.linear(z1))
-        output = self.softmax(self.output(z2))
+        #output = self.softmax(self.output(z2))
+        output = self.output(z2)
 
         return self.unscramble(output, flips)
 
@@ -154,7 +156,7 @@ class SmartCNN(nn.Module):
         x, flips = self.rotate_normalize(x)
 
         x_log = torch.log2(x + (x==0).int())
-        onehot = F.one_hot(x_log.long(), num_classes=self.classes)
+        onehot = F.one_hot(x_log.long(), num_classes=self.input_features-1)
 
         # Transpose into (Batch, Channel, Row, Column) order
         output = torch.zeros((batch_size, 12, 4, 4))
