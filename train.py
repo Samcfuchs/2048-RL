@@ -257,9 +257,15 @@ if __name__ == "__main__":
                 l = train(replay_memory, model, optimizer, criterion)
                 loss += l
 
-            stat = test(model, n_games=100)
-            stat['train_loss'] = (loss / training_iterations).item()
-            stats.append(stat)
+            if e % test_interval == 0:
+                stat = test(model, n_games=100)
+                stat['train_loss'] = (loss / training_iterations).item()
+                stats.append(stat)
+
+                if stats_file:
+                    with open(stats_file, 'w') as f: json.dump(stats, f)
+                
+                torch.save(model.state_dict(), folder + f"models/trained_{e}.pth")
 
             del replay_memory
             gc.collect()
