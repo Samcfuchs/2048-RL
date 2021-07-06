@@ -10,10 +10,6 @@ import random
 from tqdm import tqdm
 import gc
 import models
-#from torch import multiprocessing as multi
-#from torch.multiprocessing import Pool
-#from multiprocessing import Pool
-#import multiprocessing as multi
 
 gc.enable()
 
@@ -235,7 +231,6 @@ if __name__ == "__main__":
 
     #losses = []
     model.train()
-    #multi.set_sharing_strategy('file_system')
 
     print("Begin training")
 
